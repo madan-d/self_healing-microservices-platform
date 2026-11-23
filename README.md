@@ -341,5 +341,5 @@ To avoid incurring ongoing cloud costs when testing on AWS:
 ---
 
 **Author:** Cloud & DevOps Platform Engineer  
-**Portfolio:** [madan.me](https://madan.me)  
+**Portfolio:** [portfolio.madan.me](https://portfolio.madan.me)  
 **License:** MIT
