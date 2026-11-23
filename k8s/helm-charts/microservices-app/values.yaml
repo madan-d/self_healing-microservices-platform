@@ -1,0 +1,106 @@
+# Default values for microservices-app
+
+global:
+  environment: dev
+  namespace: app
+
+# Backend Service (FastAPI)
+backend:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/devops-portfolio/backend
+    tag: "v1.0.0"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  probes:
+    liveness:
+      path: /healthz
+      initialDelaySeconds: 10
+      periodSeconds: 10
+    readiness:
+      path: /readyz
+      initialDelaySeconds: 10
+      periodSeconds: 5
+  env:
+    DATABASE_URL: "postgresql://postgres:postgres_secure_pass@postgres-service:5432/taskdb"
+    ENVIRONMENT: "dev"
+    LOG_LEVEL: "INFO"
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+
+# Frontend Service (Nginx)
+frontend:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/devops-portfolio/frontend
+    tag: "v1.0.0"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+  resources:
+    limits:
+      cpu: 200m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  probes:
+    liveness:
+      path: /healthz
+      initialDelaySeconds: 5
+      periodSeconds: 10
+    readiness:
+      path: /healthz
+      initialDelaySeconds: 5
+      periodSeconds: 5
+
+# PostgreSQL Database
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "16-alpine"
+    pullPolicy: IfNotPresent
+  auth:
+    database: taskdb
+    username: postgres
+    password: postgres_secure_pass
+  persistence:
+    storageClass: "gp2"
+    size: 2Gi
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+# Ingress
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  hosts:
+    - host: "" # Catch-all: matches localhost, 127.0.0.1, and app.local
+      paths:
+        - path: /
+          pathType: Prefix
+          service: frontend-service
+          port: 80

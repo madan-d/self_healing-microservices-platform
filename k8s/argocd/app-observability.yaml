@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability-stack
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: aiops-platform
+spec:
+  project: default
+  source:
+    chart: kube-prometheus-stack
+    repoURL: https://prometheus-community.github.io/helm-charts
+    targetRevision: 60.0.0
+    helm:
+      valuesObject:
+        alertmanager:
+          config:
+            global:
+              resolve_timeout: 5m
+            route:
+              group_by: ['alertname', 'namespace', 'pod']
+              group_wait: 10s
+              group_interval: 30s
+              repeat_interval: 1h
+              receiver: 'aiops-webhook'
+              routes:
+                - matchers:
+                    - severity =~ "critical|warning"
+                  receiver: 'aiops-webhook'
+            receivers:
+              - name: 'aiops-webhook'
+                webhook_configs:
+                  - url: 'http://aiops-agent.aiops.svc.cluster.local:8000/webhook/alertmanager'
+                    send_resolved: true
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

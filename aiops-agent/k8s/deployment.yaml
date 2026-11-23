@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aiops-agent
+  namespace: aiops
+  labels:
+    app: aiops-agent
+    role: incident-remediation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aiops-agent
+  template:
+    metadata:
+      labels:
+        app: aiops-agent
+        role: incident-remediation
+    spec:
+      serviceAccountName: aiops-agent-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10002
+        runAsGroup: 10002
+        fsGroup: 10002
+      containers:
+        - name: agent
+          image: ghcr.io/devops-portfolio/aiops-agent:v1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: LLM_PROVIDER
+              value: "auto"
+            - name: AWS_REGION
+              value: "us-east-1"
+            - name: ARGOCD_SERVER
+              value: "http://argocd-server.argocd.svc.cluster.local"
+            - name: LOKI_URL
+              value: "http://loki.monitoring.svc.cluster.local:3100"
+            - name: AUTO_REMEDIATION_ENABLED
+              value: "true"
+            - name: MAX_AUTO_RESTARTS_PER_HOUR
+              value: "3"
+          envFrom:
+            - secretRef:
+                name: aiops-secrets
+                optional: true
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          resources:
+            limits:
+              cpu: 500m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi

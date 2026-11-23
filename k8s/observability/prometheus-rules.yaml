@@ -1,0 +1,62 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: aiops-incident-rules
+  namespace: monitoring
+  labels:
+    release: prometheus
+    role: alert-rules
+spec:
+  groups:
+    - name: aiops-workload-anomalies
+      rules:
+        # Rule 1: Pod CrashLoopBackOff Anomaly
+        - alert: PodCrashLoopBackOff
+          expr: |
+            increase(kube_pod_container_status_restarts_total[5m]) > 1
+            or
+            kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff"} == 1
+          for: 1m
+          labels:
+            severity: critical
+            category: TRANSIENT_OR_FATAL
+          annotations:
+            summary: "Pod {{ $labels.pod }} is repeatedly crashing (CrashLoopBackOff)"
+            description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has restarted multiple times within 5 minutes or is in CrashLoopBackOff."
+
+        # Rule 2: Pod OOMKilled Anomaly
+        - alert: PodOOMKilled
+          expr: kube_pod_container_status_last_terminated_reason{reason="OOMKilled"} == 1
+          for: 0m
+          labels:
+            severity: critical
+            category: OOM_MEMORY_LEAK
+          annotations:
+            summary: "Pod {{ $labels.pod }} was killed due to Out-Of-Memory (OOMKilled)"
+            description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} exceeded its container memory limit and was terminated by the Linux OOM killer."
+
+        # Rule 3: High Memory Warning (>85% limit)
+        - alert: PodHighMemoryUsage
+          expr: |
+            (container_memory_working_set_bytes{container!=""} / container_spec_memory_limit_bytes{container!=""}) > 0.85
+          for: 2m
+          labels:
+            severity: warning
+            category: MEMORY_SPIKE
+          annotations:
+            summary: "Pod {{ $labels.pod }} memory usage exceeds 85%"
+            description: "Container {{ $labels.container }} in pod {{ $labels.pod }} is using {{ $value | humanizePercentage }} of its memory limit."
+
+        # Rule 4: High HTTP 5xx Error Rate
+        - alert: ServiceHigh5xxRate
+          expr: |
+            sum(rate(http_requests_total{status=~"5.."}[2m])) by (app, namespace)
+            /
+            sum(rate(http_requests_total[2m])) by (app, namespace) > 0.05
+          for: 2m
+          labels:
+            severity: critical
+            category: CODE_REGRESSION
+          annotations:
+            summary: "Service {{ $labels.app }} experiencing > 5% HTTP 5xx error rate"
+            description: "Over 5% of incoming HTTP requests for {{ $labels.app }} in namespace {{ $labels.namespace }} are failing with 5xx status codes."

@@ -1,0 +1,12 @@
+apiVersion: v2
+name: microservices-app
+description: Production-grade 3-tier microservices application (Frontend, FastAPI Backend, PostgreSQL)
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - microservices
+  - fastapi
+  - react
+  - postgresql
+  - aiops

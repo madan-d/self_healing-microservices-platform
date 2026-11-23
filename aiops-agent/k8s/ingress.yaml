@@ -1,0 +1,33 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aiops-agent-ingress
+  namespace: aiops
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /api/v1/incidents
+            pathType: Prefix
+            backend:
+              service:
+                name: aiops-agent
+                port:
+                  number: 8000
+          - path: /webhook/alertmanager
+            pathType: Prefix
+            backend:
+              service:
+                name: aiops-agent
+                port:
+                  number: 8000
+          - path: /actions/rollback
+            pathType: Prefix
+            backend:
+              service:
+                name: aiops-agent
+                port:
+                  number: 8000

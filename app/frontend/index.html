@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIOps Cloud Platform Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#f0f9ff', 500: '#0284c7', 600: '#0369a1', 900: '#0c4a6e' },
+            slate: { 850: '#151e2e', 900: '#0f172a' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
+  <!-- Top Navigation -->
+  <header class="border-b border-slate-800 bg-slate-850/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/20">
+          <i class="fa-solid fa-microchip text-lg"></i>
+        </div>
+        <div>
+          <span class="font-bold text-lg text-white tracking-tight">CloudOps<span class="text-sky-400">.AIOps</span></span>
+          <span class="text-xs text-slate-400 block">Self-Healing Microservices Platform</span>
+        </div>
+      </div>
+      <div class="flex items-center space-x-4">
+        <div id="conn-badge" class="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          Cluster Connected
+        </div>
+        <span class="text-xs bg-slate-800 text-slate-300 px-2.5 py-1 rounded border border-slate-700">GitOps Synced (ArgoCD)</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8">
+    
+    <!-- Hero / System Status Bar -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="bg-slate-850 rounded-xl p-5 border border-slate-800">
+        <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Backend Pod</span>
+        <div id="pod-name" class="mt-2 text-sm font-mono font-semibold text-sky-400 truncate">Loading...</div>
+        <span id="node-name" class="text-xs text-slate-500 block mt-1 truncate">Node: -</span>
+      </div>
+      <div class="bg-slate-850 rounded-xl p-5 border border-slate-800">
+        <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">App Version & Env</span>
+        <div id="app-version" class="mt-2 text-sm font-mono font-semibold text-emerald-400">v1.0.0</div>
+        <span id="app-env" class="text-xs text-slate-500 block mt-1">Environment: dev</span>
+      </div>
+      <div class="bg-slate-850 rounded-xl p-5 border border-slate-800">
+        <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Database Status</span>
+        <div id="db-status" class="mt-2 text-sm font-semibold text-emerald-400 flex items-center gap-1.5">
+          <i class="fa-solid fa-circle-check text-xs"></i> Connected (PostgreSQL)
+        </div>
+        <span id="app-uptime" class="text-xs text-slate-500 block mt-1">Uptime: 0s</span>
+      </div>
+      <div class="bg-slate-850 rounded-xl p-5 border border-slate-800">
+        <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">AIOps Bot Triage</span>
+        <div class="mt-2 text-sm font-semibold text-purple-400 flex items-center gap-1.5">
+          <i class="fa-solid fa-robot text-xs animate-bounce"></i> Autonomous Engine Active
+        </div>
+        <span class="text-xs text-slate-500 block mt-1">Watching Prometheus & Loki</span>
+      </div>
+    </div>
+
+    <!-- 2 Column Section: App Tasks & AIOps Chaos Engineering Lab -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      
+      <!-- Left Column: Production 3-Tier Application (Tasks) -->
+      <section class="lg:col-span-6 bg-slate-850 rounded-2xl p-6 border border-slate-800 shadow-xl flex flex-col">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-800 mb-6">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-layer-group text-sky-400"></i> Tier 3 Application: Microservice Workloads
+            </h2>
+            <p class="text-xs text-slate-400">Interacts with FastAPI backend and stores persistent data in PostgreSQL</p>
+          </div>
+          <button onclick="fetchTasks()" class="text-xs px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition">
+            <i class="fa-solid fa-arrows-rotate mr-1"></i> Refresh
+          </button>
+        </div>
+
+        <!-- Task Creation Form -->
+        <form id="task-form" onsubmit="createTask(event)" class="flex gap-3 mb-6">
+          <input id="task-title" type="text" required placeholder="Enter workload or task description..." class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition">
+          <button type="submit" class="px-5 py-2.5 bg-sky-500 hover:bg-sky-600 text-white font-medium text-sm rounded-lg shadow-lg shadow-sky-500/25 transition flex items-center gap-1.5">
+            <i class="fa-solid fa-plus text-xs"></i> Add
+          </button>
+        </form>
+
+        <!-- Tasks List -->
+        <div class="flex-1 overflow-y-auto max-h-96 space-y-2 pr-1" id="tasks-container">
+          <div class="text-center py-8 text-slate-500 text-sm">Loading tasks...</div>
+        </div>
+      </section>
+
+      <!-- Right Column: AIOps Chaos Engineering Lab & Live Fault Injection -->
+      <section class="lg:col-span-6 bg-gradient-to-br from-slate-850 to-slate-900 rounded-2xl p-6 border border-purple-500/30 shadow-xl relative overflow-hidden flex flex-col">
+        <div class="absolute -top-12 -right-12 w-40 h-40 bg-purple-500/10 rounded-full blur-2xl"></div>
+        <div class="pb-4 border-b border-slate-800 mb-6">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 uppercase tracking-widest">Chaos Lab</span>
+            <span class="text-xs text-slate-400">Live Recruiter & Portfolio Demo</span>
+          </div>
+          <h2 class="text-lg font-bold text-white mt-1 flex items-center gap-2">
+            <i class="fa-solid fa-wand-magic-sparkles text-purple-400"></i> Self-Healing AIOps Triggers
+          </h2>
+          <p class="text-xs text-slate-400 mt-1">Injects faults into the backend, alerts the AIOps bot, and executes safe self-healing in real time.</p>
+        </div>
+
+        <div class="space-y-4">
+          <!-- Chaos Trigger 1: CrashLoopBackOff -->
+          <div class="p-4 rounded-xl bg-slate-900/90 border border-rose-500/20 hover:border-rose-500/40 transition">
+            <div class="flex items-start justify-between">
+              <div>
+                <span class="text-xs font-bold text-rose-400 flex items-center gap-1.5">
+                  <i class="fa-solid fa-skull-crossbones"></i> Scenario 1: CrashLoopBackOff (Auto-Restart)
+                </span>
+                <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+                  Forces pod exit 1. The AIOps Bot pulls previous container logs, identifies a transient crash, and executes a safe rolling restart on the deployment.
+                </p>
+              </div>
+            </div>
+            <button id="btn-crash" onclick="injectChaos('crash')" class="mt-3 w-full py-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2">
+              <i class="fa-solid fa-bolt"></i> Trigger Fatal Process Exit & Auto-Heal
+            </button>
+          </div>
+
+          <!-- Chaos Trigger 2: OOMKilled -->
+          <div class="p-4 rounded-xl bg-slate-900/90 border border-amber-500/20 hover:border-amber-500/40 transition">
+            <div>
+              <span class="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-memory"></i> Scenario 2: Memory Leak (OOMKilled)
+              </span>
+              <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+                Allocates memory exceeding Kubernetes 256Mi container limits. Linux OOM-killer terminates container (exit 137). AIOps bot diagnoses OOM and suggests exact memory fix.
+              </p>
+            </div>
+            <button id="btn-oom" onclick="injectChaos('memory-leak')" class="mt-3 w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2">
+              <i class="fa-solid fa-triangle-exclamation"></i> Allocate 300MB Memory Spike
+            </button>
+          </div>
+
+          <!-- Chaos Trigger 3: 500 Error Spike -->
+          <div class="p-4 rounded-xl bg-slate-900/90 border border-sky-500/20 hover:border-sky-500/40 transition">
+            <div>
+              <span class="text-xs font-bold text-sky-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-bug"></i> Scenario 3: Bad Release / 5xx Spike (Rollback)
+              </span>
+              <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+                Simulates broken release returning 500 errors. AIOps bot prevents restart storms and offers a one-click Human-in-the-Loop "Approve Rollback" button.
+              </p>
+            </div>
+            <button id="btn-5xx" onclick="injectChaos('error-spike')" class="mt-3 w-full py-2 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2">
+              <i class="fa-solid fa-chart-line-down"></i> Inject 25x HTTP 500 Responses
+            </button>
+          </div>
+        </div>
+
+        <!-- Live Triage Status Card -->
+        <div id="triage-status-card" class="mt-5 p-4 rounded-xl bg-slate-950 border border-purple-500/40 hidden">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+            <span class="text-xs font-bold text-purple-400 flex items-center gap-2">
+              <i class="fa-solid fa-robot animate-pulse"></i> Live AIOps Bot Incident Report
+            </span>
+            <span id="triage-badge" class="px-2 py-0.5 rounded text-[10px] font-bold"></span>
+          </div>
+          <div class="space-y-2 text-xs">
+            <div class="flex justify-between text-slate-400">
+              <span>Incident ID:</span>
+              <span id="triage-id" class="font-mono text-white"></span>
+            </div>
+            <div class="flex justify-between text-slate-400">
+              <span>Root Cause Category:</span>
+              <span id="triage-category" class="font-mono text-purple-300 font-bold"></span>
+            </div>
+            <div class="text-slate-300 mt-2 bg-slate-900 p-2.5 rounded border border-slate-800">
+              <span class="font-bold text-slate-200">AI Root Cause Diagnosis:</span>
+              <p id="triage-summary" class="mt-1 text-slate-300 leading-relaxed"></p>
+            </div>
+            <div class="mt-2 text-slate-300">
+              <span class="font-bold text-slate-200">Remediation Action:</span>
+              <p id="triage-action" class="mt-1 font-semibold text-emerald-400"></p>
+            </div>
+            <div id="triage-rollback-container" class="mt-3 hidden">
+              <button onclick="approveRollback()" id="btn-rollback" class="w-full py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-lg transition shadow-lg shadow-rose-600/30 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-rotate-left"></i> 🚀 One-Click Approve Rollback (ArgoCD)
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="border-t border-slate-800 py-4 text-center text-xs text-slate-500">
+    AWS EKS • Terraform • Helm • ArgoCD • Prometheus & Loki • FastAPI AIOps Agent
+  </footer>
+
+  <script>
+    const API_BASE = '/api/v1';
+    let currentPodName = 'backend-service';
+
+    async function fetchSystemInfo() {
+      try {
+        const res = await fetch(`${API_BASE}/system/info`);
+        if (!res.ok) throw new Error('API offline');
+        const data = await res.json();
+        currentPodName = data.pod_name;
+        document.getElementById('pod-name').innerText = data.pod_name;
+        document.getElementById('node-name').innerText = `Node: ${data.node_name}`;
+        document.getElementById('app-version').innerText = data.version;
+        document.getElementById('app-env').innerText = `Environment: ${data.environment}`;
+        document.getElementById('app-uptime').innerText = `Uptime: ${Math.floor(data.uptime_seconds)}s`;
+        document.getElementById('conn-badge').innerHTML = `
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          Cluster Connected
+        `;
+        document.getElementById('conn-badge').className = "px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-2";
+      } catch (err) {
+        document.getElementById('conn-badge').innerHTML = `
+          <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+          Service Unreachable
+        `;
+        document.getElementById('conn-badge').className = "px-3 py-1 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center gap-2";
+      }
+    }
+
+    async function fetchTasks() {
+      const container = document.getElementById('tasks-container');
+      try {
+        const res = await fetch(`${API_BASE}/tasks`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const tasks = await res.json();
+        if (tasks.length === 0) {
+          container.innerHTML = `<div class="text-center py-8 text-slate-500 text-sm">No tasks found. Create one above!</div>`;
+          return;
+        }
+        container.innerHTML = tasks.map(t => `
+          <div class="flex items-center justify-between p-3.5 bg-slate-900 rounded-lg border border-slate-800 hover:border-slate-700 transition">
+            <div>
+              <div class="text-sm font-medium text-white">${escapeHtml(t.title)}</div>
+              ${t.description ? `<div class="text-xs text-slate-400">${escapeHtml(t.description)}</div>` : ''}
+            </div>
+            <button onclick="deleteTask(${t.id})" class="text-slate-500 hover:text-rose-400 p-1 text-xs transition">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        `).join('');
+      } catch (err) {
+        container.innerHTML = `<div class="p-3 rounded bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">Error loading tasks: ${err.message}</div>`;
+      }
+    }
+
+    async function createTask(e) {
+      e.preventDefault();
+      const input = document.getElementById('task-title');
+      const title = input.value.trim();
+      if (!title) return;
+      try {
+        const res = await fetch(`${API_BASE}/tasks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title })
+        });
+        if (res.ok) {
+          input.value = '';
+          fetchTasks();
+        }
+      } catch (err) {
+        alert('Failed to create task: ' + err.message);
+      }
+    }
+
+    async function deleteTask(id) {
+      try {
+        await fetch(`${API_BASE}/tasks/${id}`, { method: 'DELETE' });
+        fetchTasks();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function injectChaos(type) {
+      const card = document.getElementById('triage-status-card');
+      card.classList.remove('hidden');
+      document.getElementById('triage-summary').innerText = "🤖 Injecting fault into pod & notifying AIOps Incident Agent...";
+      document.getElementById('triage-action').innerText = "Investigating logs & events...";
+      document.getElementById('triage-id').innerText = "Pending...";
+      document.getElementById('triage-category').innerText = "ANALYZING";
+      document.getElementById('triage-badge').innerText = "INCIDENT IN PROGRESS";
+      document.getElementById('triage-badge').className = "px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30";
+      document.getElementById('triage-rollback-container').classList.add('hidden');
+
+      // 1. Inject Chaos into backend pod
+      try {
+        let chaosUrl = `${API_BASE}/chaos/${type}`;
+        if (type === 'memory-leak') chaosUrl += '?megabytes=300';
+        if (type === 'error-spike') chaosUrl += '?count=25';
+        fetch(chaosUrl, { method: 'POST' }).catch(() => {});
+      } catch (_) {}
+
+      // 2. Map to Alertmanager alert payload
+      let alertName = "PodCrashLoopBackOff";
+      let summary = `Pod ${currentPodName} is in CrashLoopBackOff`;
+      if (type === 'memory-leak') {
+        alertName = "PodOOMKilled";
+        summary = `Pod ${currentPodName} terminated due to OOMKilled`;
+      } else if (type === 'error-spike') {
+        alertName = "ServiceHigh5xxRate";
+        summary = `Backend service experiencing > 5% 5xx errors`;
+      }
+
+      const alertPayload = {
+        version: "4",
+        status: "firing",
+        receiver: "aiops-webhook",
+        alerts: [{
+          status: "firing",
+          labels: {
+            alertname: alertName,
+            namespace: "app",
+            pod: currentPodName,
+            container: "backend",
+            severity: "critical"
+          },
+          annotations: { summary: summary },
+          startsAt: new Date().toISOString()
+        }]
+      };
+
+      // 3. Dispatch to AIOps Agent Webhook
+      try {
+        await fetch('/webhook/alertmanager', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(alertPayload)
+        });
+      } catch (err) {
+        console.warn("Direct webhook call:", err);
+      }
+
+      // 4. Poll for LLM triage result
+      setTimeout(pollLatestIncident, 2000);
+    }
+
+    async function pollLatestIncident() {
+      try {
+        const res = await fetch('/api/v1/incidents');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.incidents && data.incidents.length > 0) {
+          const inc = data.incidents[data.incidents.length - 1];
+          renderIncident(inc);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderIncident(inc) {
+      const card = document.getElementById('triage-status-card');
+      card.classList.remove('hidden');
+      document.getElementById('triage-id').innerText = inc.incident_id;
+      document.getElementById('triage-category').innerText = inc.category;
+      document.getElementById('triage-summary').innerText = inc.summary;
+      document.getElementById('triage-action').innerText = inc.action_taken || inc.recommended_action;
+
+      const badge = document.getElementById('triage-badge');
+      if (inc.auto_remediated) {
+        badge.innerText = "✅ AUTO-HEALED";
+        badge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+      } else if (inc.recommended_action === "APPROVE_ROLLBACK") {
+        badge.innerText = "⚠️ ROLLBACK PENDING";
+        badge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30";
+        document.getElementById('triage-rollback-container').classList.remove('hidden');
+      } else {
+        badge.innerText = inc.severity;
+        badge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30";
+      }
+    }
+
+    async function approveRollback() {
+      const btn = document.getElementById('btn-rollback');
+      btn.innerText = "Triggering ArgoCD Rollback...";
+      try {
+        const res = await fetch('/actions/rollback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            application_name: "microservices-app",
+            namespace: "app",
+            reason: "Operator approved rollback from dashboard UI"
+          })
+        });
+        const data = await res.json();
+        btn.innerHTML = `<i class="fa-solid fa-check"></i> Rollback Triggered Successfully!`;
+        btn.className = "w-full py-2 bg-emerald-600 text-white font-bold rounded-lg";
+      } catch (err) {
+        btn.innerText = "Rollback Failed: " + err.message;
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.innerText = text;
+      return div.innerHTML;
+    }
+
+    // Polling intervals
+    fetchSystemInfo();
+    fetchTasks();
+    pollLatestIncident();
+    setInterval(fetchSystemInfo, 5000);
+    setInterval(pollLatestIncident, 4000);
+  </script>
+</body>
+</html>

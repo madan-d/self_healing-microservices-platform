@@ -1,0 +1,125 @@
+name: DevSecOps CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'app/**'
+      - 'aiops-agent/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'app/**'
+      - 'aiops-agent/**'
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
+jobs:
+  lint-and-test:
+    name: Code Quality & Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Linting & Test Tools
+        run: |
+          pip install ruff pytest pytest-asyncio
+          pip install -r app/backend/requirements.txt
+          pip install -r aiops-agent/requirements.txt
+
+      - name: Lint Python Code with Ruff
+        run: |
+          ruff check app/backend/ aiops-agent/app/
+
+      - name: Run AIOps Agent Unit Tests
+        run: |
+          cd aiops-agent
+          pytest tests/ -v
+
+  trivy-fs-scan:
+    name: Trivy Filesystem & IaC Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy FS Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          ignore-unfixed: true
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+
+  build-and-scan-images:
+    name: Docker Build & Trivy Image Security Gate
+    needs: [lint-and-test, trivy-fs-scan]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - service: backend
+            context: ./app/backend
+            dockerfile: ./app/backend/Dockerfile
+            image_name: ghcr.io/${{ github.repository_owner }}/aiops-backend
+          - service: frontend
+            context: ./app/frontend
+            dockerfile: ./app/frontend/Dockerfile
+            image_name: ghcr.io/${{ github.repository_owner }}/aiops-frontend
+          - service: aiops-agent
+            context: ./aiops-agent
+            dockerfile: ./aiops-agent/Dockerfile
+            image_name: ghcr.io/${{ github.repository_owner }}/aiops-incident-agent
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Container Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: false
+          load: true
+          tags: ${{ matrix.image_name }}:${{ github.sha }}
+
+      - name: Scan Image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ matrix.image_name }}:${{ github.sha }}
+          format: 'table'
+          exit-code: '1' # Fails CI if CRITICAL CVEs are detected!
+          ignore-unfixed: true
+          severity: 'CRITICAL'
+
+      - name: Log in to GitHub Container Registry
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push Container Image to GHCR
+        if: github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ matrix.image_name }}:${{ github.sha }}
+            ${{ matrix.image_name }}:latest
