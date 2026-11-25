@@ -114,3 +114,12 @@ def test_rollback_endpoint():
     data = response.json()
     assert data["status"] == "success"
     assert data["action"] == "ROLLBACK_EXECUTED"
+
+
+def test_queue_stats_endpoint():
+    response = client.get("/api/v1/queue/stats")
+    assert response.status_code == 200
+    data = response.json()
+    assert "redis_connected" in data
+    assert "alert_stream_depth" in data
+    assert "buffered_incidents_total" in data

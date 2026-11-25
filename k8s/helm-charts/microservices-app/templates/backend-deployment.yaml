@@ -36,6 +36,8 @@ spec:
           env:
             - name: DATABASE_URL
               value: {{ .Values.backend.env.DATABASE_URL | quote }}
+            - name: REDIS_URL
+              value: {{ .Values.backend.env.REDIS_URL | quote }}
             - name: ENVIRONMENT
               value: {{ .Values.backend.env.ENVIRONMENT | quote }}
             - name: LOG_LEVEL

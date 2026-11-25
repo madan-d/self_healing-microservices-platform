@@ -39,6 +39,8 @@ spec:
               value: "http://argocd-server.argocd.svc.cluster.local"
             - name: LOKI_URL
               value: "http://loki.monitoring.svc.cluster.local:3100"
+            - name: REDIS_URL
+              value: "redis://redis-service.app.svc.cluster.local:6379/0"
             - name: AUTO_REMEDIATION_ENABLED
               value: "true"
             - name: MAX_AUTO_RESTARTS_PER_HOUR

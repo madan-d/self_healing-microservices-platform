@@ -1,9 +1,14 @@
 import uuid
+import time
+import json
+import asyncio
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+import redis
 
 from .config import settings
 from .models import (
@@ -33,10 +38,74 @@ llm_analyzer = LLMAnalyzer()
 notification_service = NotificationService()
 remediation_engine = RemediationEngine(k8s_client)
 
+# Redis Client for Alert Storm Buffering with In-Memory Graceful Fallback
+redis_client: Optional[redis.Redis] = None
+try:
+    redis_client = redis.Redis.from_url(
+        settings.REDIS_URL,
+        decode_responses=True,
+        socket_connect_timeout=2.0
+    )
+    redis_client.ping()
+    logger.info("Connected to Redis alert storm buffer successfully.")
+except Exception as err:
+    logger.warning(f"Initial Redis connection failed ({err}). Operating with in-memory direct processing.")
+    redis_client = None
+
+# Sliding window cache for alert storm deduplication
+recent_triage_timestamps: Dict[str, float] = {}
+
+
+async def redis_alert_consumer():
+    """Background consumer that pulls alerts from Redis stream and deduplicates alert storms."""
+    logger.info("Async Redis alert storm consumer started.")
+    while True:
+        try:
+            if redis_client:
+                raw_alert = redis_client.rpop("aiops_alert_stream")
+                if raw_alert:
+                    data = json.loads(raw_alert)
+                    incident_id = data.get("incident_id")
+                    alert_dict = data.get("alert", {})
+
+                    labels = alert_dict.get("labels", {})
+                    pod_name = labels.get("pod") or labels.get("instance", "backend-service")
+                    alert_name = labels.get("alertname", "UnknownAlert")
+                    dedup_key = f"{pod_name}:{alert_name}"
+                    now = time.time()
+                    last_seen = recent_triage_timestamps.get(dedup_key, 0.0)
+
+                    if now - last_seen < 30.0:
+                        logger.info(f"Suppressing duplicate alert storm for {dedup_key} (seen {int(now - last_seen)}s ago).")
+                    else:
+                        recent_triage_timestamps[dedup_key] = now
+                        from .models import AlertItem
+                        alert_obj = AlertItem(**alert_dict)
+                        await process_alert_item(alert_obj, incident_id)
+            await asyncio.sleep(1)
+        except asyncio.CancelledError:
+            break
+        except Exception as exc:
+            logger.debug(f"Redis consumer iteration notice: {exc}")
+            await asyncio.sleep(2)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    consumer_task = asyncio.create_task(redis_alert_consumer())
+    yield
+    consumer_task.cancel()
+    try:
+        await consumer_task
+    except asyncio.CancelledError:
+        pass
+
+
 app = FastAPI(
     title="AIOps Incident Triage & Self-Healing Agent",
     version="1.0.0",
-    description="Automated triage bot for Alertmanager alerts with LLM root cause analysis and GitOps remediation."
+    description="Automated triage bot for Alertmanager alerts with LLM root cause analysis and GitOps remediation.",
+    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -53,13 +122,42 @@ incident_history: List[Dict[str, Any]] = []
 
 @app.get("/healthz", tags=["Health"])
 def health_check():
-    return {"status": "healthy", "service": settings.APP_NAME}
+    redis_ok = False
+    if redis_client:
+        try:
+            redis_ok = bool(redis_client.ping())
+        except Exception:
+            redis_ok = False
+    return {
+        "status": "healthy",
+        "service": settings.APP_NAME,
+        "redis_connected": redis_ok
+    }
 
 
 @app.get("/api/v1/incidents", tags=["Incidents"])
 def list_incidents():
     """Lists recent triaged incidents, LLM root-causes, and actions taken."""
     return {"count": len(incident_history), "incidents": incident_history[-20:]}
+
+
+@app.get("/api/v1/queue/stats", tags=["Queue"])
+def get_alert_queue_stats():
+    """Returns real-time AIOps alert storm queue depth and buffer telemetry."""
+    redis_ok = False
+    stream_length = 0
+    if redis_client:
+        try:
+            redis_ok = bool(redis_client.ping())
+            stream_length = redis_client.llen("aiops_alert_stream")
+        except Exception:
+            redis_ok = False
+
+    return {
+        "redis_connected": redis_ok,
+        "alert_stream_depth": stream_length,
+        "buffered_incidents_total": len(incident_history)
+    }
 
 
 async def process_alert_item(alert, incident_id: str):
@@ -124,6 +222,7 @@ async def alertmanager_webhook(payload: AlertmanagerPayload, background_tasks: B
     """
     Alertmanager Webhook Receiver:
     Fired by Alertmanager when anomalies (CrashLoopBackOff, OOMKilled, 5xx spike) are detected.
+    Pushes to Redis alert storm buffer for async deduplication, with fallback to background tasks.
     """
     logger.info(f"Received Alertmanager webhook payload with {len(payload.alerts)} alert(s). Status={payload.status}")
 
@@ -133,7 +232,22 @@ async def alertmanager_webhook(payload: AlertmanagerPayload, background_tasks: B
 
     for alert in payload.alerts:
         incident_id = f"inc-{uuid.uuid4().hex[:8]}"
-        background_tasks.add_task(process_alert_item, alert, incident_id)
+        enqueued_redis = False
+        if redis_client:
+            try:
+                alert_payload = {
+                    "incident_id": incident_id,
+                    "alert": alert.model_dump(),
+                    "enqueued_at": time.time()
+                }
+                redis_client.lpush("aiops_alert_stream", json.dumps(alert_payload))
+                logger.info(f"Buffered alert {alert.labels.get('alertname')} into Redis stream (incident: {incident_id})")
+                enqueued_redis = True
+            except Exception as r_err:
+                logger.warning(f"Redis buffering failed ({r_err}), falling back to background task.")
+
+        if not enqueued_redis:
+            background_tasks.add_task(process_alert_item, alert, incident_id)
 
     return {
         "status": "accepted",

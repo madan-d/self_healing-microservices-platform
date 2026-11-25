@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     # Logging Aggregator (Loki)
     LOKI_URL: str = "http://loki.monitoring.svc.cluster.local:3100"
 
+    # Message Queue / Buffer (Redis)
+    REDIS_URL: str = "redis://redis-service.app.svc.cluster.local:6379/0"
+
     # Auto-Remediation Safety Controls
     AUTO_REMEDIATION_ENABLED: bool = True
     MAX_AUTO_RESTARTS_PER_HOUR: int = 3

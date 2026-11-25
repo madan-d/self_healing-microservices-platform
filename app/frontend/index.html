@@ -46,30 +46,37 @@
   <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8">
     
     <!-- Hero / System Status Bar -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-      <div class="bg-slate-850 rounded-xl p-5 border border-slate-800">
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+      <div class="bg-slate-850 rounded-xl p-4 border border-slate-800">
         <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Backend Pod</span>
         <div id="pod-name" class="mt-2 text-sm font-mono font-semibold text-sky-400 truncate">Loading...</div>
         <span id="node-name" class="text-xs text-slate-500 block mt-1 truncate">Node: -</span>
       </div>
-      <div class="bg-slate-850 rounded-xl p-5 border border-slate-800">
+      <div class="bg-slate-850 rounded-xl p-4 border border-slate-800">
         <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">App Version & Env</span>
         <div id="app-version" class="mt-2 text-sm font-mono font-semibold text-emerald-400">v1.0.0</div>
         <span id="app-env" class="text-xs text-slate-500 block mt-1">Environment: dev</span>
       </div>
-      <div class="bg-slate-850 rounded-xl p-5 border border-slate-800">
-        <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Database Status</span>
-        <div id="db-status" class="mt-2 text-sm font-semibold text-emerald-400 flex items-center gap-1.5">
-          <i class="fa-solid fa-circle-check text-xs"></i> Connected (PostgreSQL)
+      <div class="bg-slate-850 rounded-xl p-4 border border-slate-800">
+        <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Database</span>
+        <div id="db-status" class="mt-2 text-sm font-semibold text-emerald-400 flex items-center gap-1.5 truncate">
+          <i class="fa-solid fa-circle-check text-xs"></i> PostgreSQL OK
         </div>
         <span id="app-uptime" class="text-xs text-slate-500 block mt-1">Uptime: 0s</span>
       </div>
-      <div class="bg-slate-850 rounded-xl p-5 border border-slate-800">
-        <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">AIOps Bot Triage</span>
-        <div class="mt-2 text-sm font-semibold text-purple-400 flex items-center gap-1.5">
-          <i class="fa-solid fa-robot text-xs animate-bounce"></i> Autonomous Engine Active
+      <div class="bg-slate-850 rounded-xl p-4 border border-slate-800">
+        <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Redis Task Queue</span>
+        <div id="redis-stat" class="mt-2 text-sm font-semibold text-amber-400 flex items-center gap-1.5 truncate">
+          <i class="fa-solid fa-bolt text-xs"></i> 0 in queue
         </div>
-        <span class="text-xs text-slate-500 block mt-1">Watching Prometheus & Loki</span>
+        <span id="redis-processed" class="text-xs text-slate-500 block mt-1">Processed: 0 tasks</span>
+      </div>
+      <div class="bg-slate-850 rounded-xl p-4 border border-slate-800">
+        <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">AIOps Bot Triage</span>
+        <div class="mt-2 text-sm font-semibold text-purple-400 flex items-center gap-1.5 truncate">
+          <i class="fa-solid fa-robot text-xs animate-bounce"></i> Autonomous Engine
+        </div>
+        <span class="text-xs text-slate-500 block mt-1">Watching Metrics & Loki</span>
       </div>
     </div>
 
@@ -277,6 +284,7 @@
         if (res.ok) {
           input.value = '';
           fetchTasks();
+          fetchQueueStats();
         }
       } catch (err) {
         alert('Failed to create task: ' + err.message);
@@ -412,6 +420,27 @@
       }
     }
 
+    async function fetchQueueStats() {
+      try {
+        const res = await fetch(`${API_BASE}/queue/stats`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const statEl = document.getElementById('redis-stat');
+        const procEl = document.getElementById('redis-processed');
+        if (statEl && procEl) {
+          if (data.redis_connected) {
+            statEl.innerHTML = `<i class="fa-solid fa-bolt text-amber-400"></i> ${data.queue_depth} in queue`;
+            statEl.className = "mt-2 text-sm font-semibold text-amber-400 flex items-center gap-1.5 truncate";
+            procEl.innerText = `Processed: ${data.completed_total} tasks`;
+          } else {
+            statEl.innerHTML = `<i class="fa-solid fa-circle-info text-slate-400"></i> Standby (In-Memory)`;
+            statEl.className = "mt-2 text-sm font-semibold text-slate-400 flex items-center gap-1.5 truncate";
+            procEl.innerText = `Redis Offline`;
+          }
+        }
+      } catch (_) {}
+    }
+
     function escapeHtml(text) {
       const div = document.createElement('div');
       div.innerText = text;
@@ -421,8 +450,10 @@
     // Polling intervals
     fetchSystemInfo();
     fetchTasks();
+    fetchQueueStats();
     pollLatestIncident();
     setInterval(fetchSystemInfo, 5000);
+    setInterval(fetchQueueStats, 2500);
     setInterval(pollLatestIncident, 4000);
   </script>
 </body>

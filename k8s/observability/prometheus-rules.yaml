@@ -60,3 +60,25 @@ spec:
           annotations:
             summary: "Service {{ $labels.app }} experiencing > 5% HTTP 5xx error rate"
             description: "Over 5% of incoming HTTP requests for {{ $labels.app }} in namespace {{ $labels.namespace }} are failing with 5xx status codes."
+
+        # Rule 5: Redis High Memory Usage Warning (>85% maxmemory)
+        - alert: RedisHighMemoryUsage
+          expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.85
+          for: 2m
+          labels:
+            severity: warning
+            category: MEMORY_SPIKE
+          annotations:
+            summary: "Redis instance {{ $labels.instance }} memory usage exceeds 85%"
+            description: "Redis instance in namespace {{ $labels.namespace }} has consumed over 85% of allocated memory limit."
+
+        # Rule 6: Redis Queue Backlog Surge (>50 pending tasks)
+        - alert: RedisQueueBacklogSurge
+          expr: redis_queue_length{queue="task_queue"} > 50
+          for: 3m
+          labels:
+            severity: warning
+            category: WORKLOAD_SURGE
+          annotations:
+            summary: "Redis task queue backlog exceeding safe thresholds"
+            description: "Task queue length in {{ $labels.namespace }} has exceeded 50 pending background jobs for more than 3 minutes."
