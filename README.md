@@ -314,19 +314,6 @@ The platform includes simulated chaos scenarios designed for live recruiter demo
 
 ---
 
-## 🎤 Interview Defense & Architecture Q&A
-
-### 1. "Why build a custom AIOps bot instead of relying solely on Kubernetes native restart policies?"
-> **Answer:** Kubernetes native restart policies (`RestartPolicy: Always`) are blind to root causes. If an issue is caused by a bad code release or missing environment variable, Kubernetes will repeatedly restart the container into a `CrashLoopBackOff` loop, potentially overwhelming downstream databases and triggering cascading failures. Our AIOps agent gathers contextual logs, exit codes, and Git metadata to distinguish between transient glitches (safe to restart) and code bugs (where restarts are suppressed and a GitOps rollback is recommended).
-
-### 2. "How does the bot prevent 'restart storms' or endless restart loops?"
-> **Answer:** The remediation engine enforces an in-memory sliding-window rate limiter (`MAX_AUTO_RESTARTS_PER_HOUR = 3`). If a service crashes more than 3 times within an hour, the auto-restart action is automatically locked, and the incident is escalated to human engineers with full diagnostics.
-
-### 3. "Why require Human-in-the-Loop for rollbacks instead of rolling back automatically?"
-> **Answer:** Automated rollbacks carry a blast radius—for instance, if a rollback breaks database schema migrations or disconnects active stateful sessions. By performing AI root-cause analysis and presenting a 1-click approval button in Slack, we reduce MTTR from 30 minutes to 10 seconds while maintaining human oversight and compliance.
-
----
-
 ## 🧹 Teardown
 
 To avoid incurring ongoing cloud costs when testing on AWS:
