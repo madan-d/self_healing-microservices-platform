@@ -26,9 +26,15 @@ jobs:
         run: |
           SHA="${{ github.event.workflow_run.head_sha }}"
           echo "Updating Helm values image tags to SHA: $SHA"
-          
-          # Update backend and frontend tags in Helm values.yaml
-          sed -i "s/tag: \".*\"/tag: \"$SHA\"/g" k8s/helm-charts/microservices-app/values.yaml
+          python3 -c "
+          import re
+          with open('k8s/helm-charts/microservices-app/values.yaml', 'r') as f:
+              data = f.read()
+          data = re.sub(r'(backend:[\s\S]*?tag:\s*\")[^\"]+(\")', r'\g<1>${{ github.event.workflow_run.head_sha }}\g<2>', data)
+          data = re.sub(r'(frontend:[\s\S]*?tag:\s*\")[^\"]+(\")', r'\g<1>${{ github.event.workflow_run.head_sha }}\g<2>', data)
+          with open('k8s/helm-charts/microservices-app/values.yaml', 'w') as f:
+              f.write(data)
+          "
 
       - name: Commit and Push GitOps Changes
         run: |

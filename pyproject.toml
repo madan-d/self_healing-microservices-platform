@@ -1,0 +1,15 @@
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+# Enable standard Flake8 / Pyflakes errors and warnings
+select = ["E", "F", "W"]
+# Ignore B008 (FastAPI Depends in argument defaults) and E501 (line length)
+ignore = ["B008", "E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+pythonpath = ["."]

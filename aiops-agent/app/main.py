@@ -1,7 +1,7 @@
 import uuid
 import logging
 from typing import List, Dict, Any
-from fastapi import FastAPI, BackgroundTasks, HTTPException, Query, status
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,7 +9,6 @@ from .config import settings
 from .models import (
     AlertmanagerPayload,
     RootCauseAnalysisResult,
-    RemediationActionResponse,
     RollbackRequest
 )
 from .k8s_client import KubernetesContextClient
@@ -158,7 +157,7 @@ async def trigger_rollback(req: RollbackRequest):
         "status": "success",
         "application": req.application_name,
         "action": "ROLLBACK_EXECUTED",
-        "message": f"ArgoCD synced application back to previous stable release."
+        "message": "ArgoCD synced application back to previous stable release."
     }
 
 
@@ -168,7 +167,6 @@ async def approve_rollback_ui(app: str = Query("microservices-app"), namespace: 
     Interactive Web confirmation page when clicking the 'Approve Rollback' button from Slack.
     """
     success = await gitops_client.trigger_rollback(app)
-    status_color = "#10b981" if success else "#ef4444"
     status_text = "Rollback Triggered Successfully" if success else "Rollback Failed"
 
     return f"""

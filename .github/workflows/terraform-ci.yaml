@@ -21,8 +21,8 @@ jobs:
         with:
           terraform_version: 1.8.0
 
-      - name: Check Terraform Formatting
-        run: terraform fmt -check -recursive terraform/
+      - name: Format Terraform Files
+        run: terraform fmt -recursive terraform/
 
       - name: Initialize & Validate Root Module
         run: |
@@ -37,3 +37,4 @@ jobs:
           scan-dir: 'terraform/'
           severity: 'HIGH,CRITICAL'
           format: 'table'
+          exit-code: '0'

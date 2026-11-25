@@ -34,7 +34,6 @@ class NotificationService:
 
     async def _send_slack_block_kit(self, rca: RootCauseAnalysisResult, auto_remediated: bool):
         """Builds rich Slack Block Kit layout with interactive approval buttons."""
-        color = "#ef4444" if rca.severity == "CRITICAL" else "#f59e0b"
         status_badge = "✅ Safe Auto-Remediation Executed" if auto_remediated else "⚠️ Action Required (Human-in-the-Loop)"
         rollback_url = f"{self.public_agent_url}/actions/rollback?app={rca.target_resource}&namespace={rca.namespace}"
 

@@ -222,7 +222,7 @@ def chaos_crash():
     def _crash():
         time.sleep(0.5)
         sys.exit(1)
-    
+
     import threading
     threading.Thread(target=_crash).start()
     return {"message": "Crash signal dispatched. Process terminating in 500ms to test CrashLoopBackOff triage."}
