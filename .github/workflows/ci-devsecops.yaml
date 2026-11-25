@@ -45,7 +45,8 @@ jobs:
 
       - name: Run AIOps Agent Unit Tests
         run: |
-          pytest aiops-agent/tests/ -v
+          cd aiops-agent
+          pytest tests/ -v
 
   trivy-fs-scan:
     name: Trivy Filesystem & IaC Security Scan

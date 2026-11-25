@@ -1,3 +1,9 @@
+import sys
+from pathlib import Path
+
+# Ensure aiops-agent directory is at the front of sys.path to avoid root ./app namespace collision
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
@@ -20,6 +26,18 @@ def test_webhook_receiver_queues_alerts():
     data = response.json()
     assert data["status"] == "accepted"
     assert data["alerts_queued"] == 1
+
+
+def test_webhook_receiver_oom_alerts():
+    response = client.post("/webhook/alertmanager", json=PAYLOAD_OOMKILLED)
+    assert response.status_code == 200
+    assert response.json()["status"] == "accepted"
+
+
+def test_webhook_receiver_5xx_alerts():
+    response = client.post("/webhook/alertmanager", json=PAYLOAD_5XX_SPIKE)
+    assert response.status_code == 200
+    assert response.json()["status"] == "accepted"
 
 
 def test_webhook_ignores_resolved():
