@@ -324,9 +324,3 @@ To avoid incurring ongoing cloud costs when testing on AWS:
 # Or clean up local Kind cluster:
 .\scripts\teardown.ps1 -Local
 ```
-
----
-
-**Author:** Cloud & DevOps Platform Engineer  
-**Portfolio:** [portfolio.madan.me](https://portfolio.madan.me)  
-**License:** MIT
